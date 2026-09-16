@@ -1,0 +1,698 @@
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Contrast Meter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#eff1ee;
+    --surface:#ffffff;
+    --surface-2:#e6e9e4;
+    --ink:#191c1b;
+    --muted:#5c645f;
+    --line:#cbd1cc;
+    --accent:#1583ae;
+    --accent-soft:rgba(21,131,174,0.14);
+    --accent-ink:#06222c;
+    --good:#3f8f5f;
+    --warn:#a5761e;
+    --bad:#c4483f;
+    --shadow:0 1px 2px rgba(25,28,27,0.07), 0 8px 24px rgba(25,28,27,0.05);
+    --font-display:'Archivo',system-ui,sans-serif;
+    --font-body:'Work Sans',system-ui,sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#12151a;
+      --surface:#1a1f24;
+      --surface-2:#20272d;
+      --ink:#e7ebe8;
+      --muted:#8d9a94;
+      --line:#2b3339;
+      --accent:#4fb8de;
+      --accent-soft:rgba(79,184,222,0.14);
+      --accent-ink:#eaf7fc;
+      --good:#5fbe84;
+      --warn:#d9a94a;
+      --bad:#e07168;
+      --shadow:0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12151a;
+    --surface:#1a1f24;
+    --surface-2:#20272d;
+    --ink:#e7ebe8;
+    --muted:#8d9a94;
+    --line:#2b3339;
+    --accent:#4fb8de;
+    --accent-soft:rgba(79,184,222,0.14);
+    --accent-ink:#eaf7fc;
+    --good:#5fbe84;
+    --warn:#d9a94a;
+    --bad:#e07168;
+    --shadow:0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  *{box-sizing:border-box;}
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; animation:none !important;}
+  }
+  html,body{margin:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--font-body);
+    font-size:15px;
+    line-height:1.5;
+  }
+  button, input{font-family:inherit; color:inherit;}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+
+  .wrap{max-width:1180px; margin:0 auto; padding:40px 24px 96px;}
+
+  header.page-head{max-width:640px; margin-bottom:32px;}
+  header.page-head h1{
+    font-family:var(--font-display);
+    font-weight:800;
+    font-size:clamp(1.75rem,3vw,2.35rem);
+    letter-spacing:-0.01em;
+    margin:0 0 10px;
+    text-wrap:balance;
+  }
+  header.page-head p{
+    margin:0;
+    color:var(--muted);
+    font-size:1.02rem;
+    max-width:60ch;
+  }
+
+  .app{display:grid; grid-template-columns:340px 1fr; gap:24px; align-items:start;}
+  @media (max-width:860px){
+    .app{grid-template-columns:1fr;}
+  }
+
+  .panel{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:12px;
+    box-shadow:var(--shadow);
+  }
+
+  .control-panel{
+    position:sticky; top:24px;
+    padding:22px;
+    display:flex; flex-direction:column; gap:22px;
+  }
+  @media (max-width:860px){ .control-panel{position:static;} }
+
+  .field-label{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:0.68rem;
+    letter-spacing:0.09em;
+    text-transform:uppercase;
+    color:var(--muted);
+    display:block;
+    margin-bottom:10px;
+  }
+
+  .base-row{display:flex; gap:10px; align-items:center;}
+  .swatch-input-wrap{position:relative; width:44px; height:44px; flex:none;}
+  input[type="color"]{
+    width:44px; height:44px; border:1px solid var(--line); border-radius:8px;
+    padding:0; background:none; cursor:pointer;
+  }
+  #hexInput{
+    flex:1; min-width:0; border:1px solid var(--line); border-radius:8px;
+    background:var(--surface-2); color:var(--ink); padding:11px 12px;
+    font-family:var(--font-mono); font-size:0.92rem; letter-spacing:0.02em;
+  }
+  #eyedropBtn{
+    flex:none; width:38px; height:38px; border:1px solid var(--line); border-radius:8px;
+    background:var(--surface-2); cursor:pointer; font-size:1rem; display:flex; align-items:center; justify-content:center;
+  }
+  #eyedropBtn:hover{border-color:var(--accent);}
+  .quick-row{display:flex; gap:8px; margin-top:10px;}
+  .quick-btn{
+    flex:1; border:1px solid var(--line); background:var(--surface-2); color:var(--ink);
+    border-radius:7px; padding:7px 0; font-size:0.82rem; font-weight:500; cursor:pointer;
+  }
+  .quick-btn:hover{border-color:var(--accent); color:var(--accent);}
+
+  .ratio-controls{display:flex; flex-direction:column; gap:10px;}
+  .ratio-numeric{display:flex; align-items:center; gap:10px;}
+  input[type="range"]{
+    flex:1; accent-color:var(--accent); height:4px;
+  }
+  #ratioNumber{
+    width:70px; border:1px solid var(--line); border-radius:7px; background:var(--surface-2);
+    color:var(--ink); padding:7px 8px; font-family:var(--font-mono); font-size:0.95rem; text-align:right;
+  }
+  .preset-row{display:flex; gap:6px;}
+  .preset-btn{
+    flex:1; border:1px solid var(--line); background:var(--surface-2); color:var(--muted);
+    border-radius:7px; padding:6px 4px; font-size:0.75rem; font-family:var(--font-mono); cursor:pointer;
+    font-variant-numeric:tabular-nums;
+  }
+  .preset-btn:hover{border-color:var(--accent); color:var(--accent);}
+  .preset-btn.active{background:var(--accent-soft); border-color:var(--accent); color:var(--accent-ink); font-weight:600;}
+  .clamp-note{font-size:0.78rem; color:var(--warn); min-height:1.1em;}
+
+  .readout{
+    background:var(--surface-2); border:1px solid var(--line); border-radius:10px;
+    padding:16px 18px; display:flex; flex-direction:column; gap:2px;
+  }
+  .readout .val{
+    font-family:var(--font-mono); font-weight:600; font-size:2rem; letter-spacing:-0.01em;
+    font-variant-numeric:tabular-nums; color:var(--accent-ink);
+  }
+  .readout .sub{font-size:0.8rem; color:var(--muted); font-family:var(--font-mono);}
+
+  .gauge-block{display:flex; flex-direction:column; gap:8px;}
+  .gauge-wrap{position:relative; height:34px; border-radius:6px; overflow:hidden; border:1px solid var(--line);}
+  .gauge-wrap canvas{position:absolute; inset:0; width:100%; height:100%; display:block;}
+  .gauge-zone{position:absolute; top:0; bottom:0; background:var(--accent-soft); border-left:1px solid var(--accent); border-right:1px solid var(--accent);}
+  .gauge-marker{position:absolute; top:-5px; bottom:-5px; width:2px; background:var(--ink); box-shadow:0 0 0 1px var(--paper);}
+  .gauge-scale{display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:0.7rem; color:var(--muted);}
+  .gauge-caption{font-size:0.78rem; color:var(--muted); font-family:var(--font-mono); font-variant-numeric:tabular-nums;}
+
+  .results{display:flex; flex-direction:column; gap:20px;}
+  .tab-bar{display:flex; gap:6px; padding:5px; background:var(--surface); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow); width:fit-content;}
+  .tab-btn{
+    border:none; background:transparent; color:var(--muted); padding:9px 18px; border-radius:7px;
+    font-family:var(--font-display); font-weight:700; font-size:0.82rem; letter-spacing:0.02em; cursor:pointer;
+  }
+  .tab-btn[aria-selected="true"]{background:var(--accent); color:var(--accent-ink);}
+  .tab-btn:disabled{opacity:0.4; cursor:not-allowed;}
+  .impossible-note{font-size:0.85rem; color:var(--muted); padding:2px 2px;}
+
+  .section{padding:22px;}
+  .section-head{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:16px; flex-wrap:wrap;}
+  .section-head h2{
+    font-family:var(--font-display); font-weight:800; font-size:1.05rem; margin:0; letter-spacing:-0.005em;
+  }
+  .section-head p{margin:2px 0 0; color:var(--muted); font-size:0.85rem;}
+
+  .curated-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:12px;}
+  .swatch-card{border:1px solid var(--line); border-radius:9px; overflow:hidden; background:var(--surface); display:flex; flex-direction:column;}
+  .swatch-preview{
+    aspect-ratio:1.35; display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-display); font-weight:800; font-size:2.1rem;
+  }
+  .swatch-meta{padding:9px 11px; display:flex; flex-direction:column; gap:5px; border-top:1px solid var(--line);}
+  .swatch-name{font-size:0.78rem; font-weight:600;}
+  .swatch-row{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+  .swatch-hex{font-family:var(--font-mono); font-size:0.76rem; color:var(--muted); font-variant-numeric:tabular-nums;}
+  .swatch-ratio{font-family:var(--font-mono); font-size:0.76rem; color:var(--accent); font-weight:600; font-variant-numeric:tabular-nums;}
+  .copy-btn{
+    border:none; background:var(--surface-2); color:var(--muted); font-size:0.68rem; padding:3px 8px;
+    border-radius:5px; cursor:pointer; font-family:var(--font-body);
+  }
+  .copy-btn:hover{color:var(--accent);}
+
+  .sweep-row{display:flex; flex-direction:column; gap:6px; margin-bottom:16px;}
+  .sweep-row:last-child{margin-bottom:0;}
+  .sweep-label{font-family:var(--font-display); font-weight:700; font-size:0.72rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted);}
+  .sweep-canvas-wrap{position:relative;}
+  .sweep-canvas-wrap canvas{width:100%; height:52px; display:block; border-radius:7px; border:1px solid var(--line); cursor:crosshair;}
+  .hue-ticks{display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:0.68rem; color:var(--muted); margin-top:4px;}
+  .sweep-tooltip{
+    position:fixed; transform:translate(-50%,-140%); background:var(--ink); color:var(--paper);
+    font-family:var(--font-mono); font-size:0.75rem; padding:5px 9px; border-radius:6px; pointer-events:none;
+    white-space:nowrap; z-index:20; opacity:0; transition:opacity .08s;
+  }
+  .sweep-tooltip.show{opacity:1;}
+
+  footer.formula{
+    max-width:640px; margin-top:12px; font-family:var(--font-mono); font-size:0.75rem; color:var(--muted); line-height:1.6;
+  }
+
+  .toast{
+    position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(12px);
+    background:var(--ink); color:var(--paper); font-size:0.82rem; padding:9px 16px; border-radius:8px;
+    opacity:0; pointer-events:none; transition:opacity .15s, transform .15s; z-index:30;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+</style>
+
+<div class="wrap">
+  <header class="page-head">
+    <h1>Contrast Meter</h1>
+    <p>Set a base color and the ratio you need — get back every shade that clears it, measured against WCAG's relative-luminance formula rather than eyeballed.</p>
+  </header>
+
+  <div class="app">
+    <div class="panel control-panel">
+      <div>
+        <span class="field-label">Base color</span>
+        <div class="base-row">
+          <div class="swatch-input-wrap">
+            <input type="color" id="colorInput" value="#000000" aria-label="Base color picker" />
+          </div>
+          <input type="text" id="hexInput" value="#000000" maxlength="7" spellcheck="false" aria-label="Base color hex value" />
+          <button id="eyedropBtn" type="button" title="Pick color from screen" aria-label="Pick color from screen">◎</button>
+        </div>
+        <div class="quick-row">
+          <button class="quick-btn" data-hex="#000000" type="button">Black</button>
+          <button class="quick-btn" data-hex="#ffffff" type="button">White</button>
+        </div>
+      </div>
+
+      <div>
+        <span class="field-label">Target ratio</span>
+        <div class="ratio-controls">
+          <div class="ratio-numeric">
+            <input type="range" id="ratioRange" min="1.1" max="21" step="0.1" value="7" />
+            <input type="number" id="ratioNumber" min="1.1" max="21" step="0.1" value="7" aria-label="Target contrast ratio" />
+          </div>
+          <div class="preset-row">
+            <button class="preset-btn" data-ratio="3" type="button" title="AA — large text">3:1</button>
+            <button class="preset-btn" data-ratio="4.5" type="button" title="AA — body text">4.5:1</button>
+            <button class="preset-btn active" data-ratio="7" type="button" title="AAA — body text">7:1</button>
+          </div>
+          <div class="clamp-note" id="clampNote"></div>
+        </div>
+      </div>
+
+      <div class="readout">
+        <span class="val" id="readoutRatio">7.00 : 1</span>
+        <span class="sub" id="readoutBase">against #000000</span>
+      </div>
+
+      <div class="gauge-block">
+        <span class="field-label" style="margin-bottom:0;">Luminance scale</span>
+        <div class="gauge-wrap">
+          <canvas id="gaugeCanvas" width="600" height="34"></canvas>
+          <div class="gauge-zone" id="zoneLighter" hidden></div>
+          <div class="gauge-zone" id="zoneDarker" hidden></div>
+          <div class="gauge-marker" id="baseMarker"></div>
+        </div>
+        <div class="gauge-scale"><span>0.0 (black)</span><span>1.0 (white)</span></div>
+        <div class="gauge-caption" id="gaugeCaption">L(base) = 0.0000</div>
+      </div>
+    </div>
+
+    <div class="results">
+      <div class="tab-bar" id="tabBar" role="tablist" aria-label="Match direction">
+        <button class="tab-btn" id="tabLighter" role="tab" type="button">Lighter than base</button>
+        <button class="tab-btn" id="tabDarker" role="tab" type="button">Darker than base</button>
+      </div>
+      <div class="impossible-note" id="impossibleNote" hidden></div>
+
+      <div class="panel section">
+        <div class="section-head">
+          <div>
+            <h2>Curated palette</h2>
+            <p>Eleven hand-picked hues, each tuned to the exact luminance your ratio requires.</p>
+          </div>
+        </div>
+        <div class="curated-grid" id="curatedGrid"></div>
+      </div>
+
+      <div class="panel section">
+        <div class="section-head">
+          <div>
+            <h2>Full sweep</h2>
+            <p>Every hue at this ratio, swept continuously — hover to read a value, click to copy it.</p>
+          </div>
+        </div>
+        <div class="sweep-row">
+          <span class="sweep-label">Vivid</span>
+          <div class="sweep-canvas-wrap">
+            <canvas id="sweepVivid" width="360" height="52"></canvas>
+          </div>
+        </div>
+        <div class="sweep-row">
+          <span class="sweep-label">Muted</span>
+          <div class="sweep-canvas-wrap">
+            <canvas id="sweepMuted" width="360" height="52"></canvas>
+          </div>
+          <div class="hue-ticks">
+            <span>Red</span><span>Yellow</span><span>Green</span><span>Cyan</span><span>Blue</span><span>Magenta</span><span>Red</span>
+          </div>
+        </div>
+      </div>
+
+      <footer class="formula">
+        Relative luminance: L = 0.2126·R + 0.7152·G + 0.0722·B, each channel linearized from sRGB.
+        Contrast ratio: (L₁ + 0.05) / (L₂ + 0.05), lighter over darker. Every swatch shown meets or exceeds the target ratio once rounded to 8-bit color.
+      </footer>
+    </div>
+  </div>
+</div>
+
+<div class="sweep-tooltip" id="sweepTooltip"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- color math ----------
+  function clamp(v,a,b){ return Math.min(b,Math.max(a,v)); }
+
+  function srgbToLinear(c){
+    c/=255;
+    return c<=0.04045 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4);
+  }
+  function linearToSrgb(cl){
+    cl = clamp(cl,0,1);
+    const v = cl<=0.0031308 ? cl*12.92 : 1.055*Math.pow(cl,1/2.4)-0.055;
+    return clamp(v,0,1);
+  }
+  function relLum(r,g,b){
+    return 0.2126*srgbToLinear(r)+0.7152*srgbToLinear(g)+0.0722*srgbToLinear(b);
+  }
+  function contrastOf(l1,l2){
+    const hi=Math.max(l1,l2), lo=Math.min(l1,l2);
+    return (hi+0.05)/(lo+0.05);
+  }
+  function hslToRgb(h,s,l){
+    h=((h%360)+360)%360; s=clamp(s,0,100)/100; l=clamp(l,0,100)/100;
+    const k = n => (n + h/30) % 12;
+    const a = s*Math.min(l,1-l);
+    const f = n => l - a*Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n),1)));
+    return [
+      Math.round(clamp(f(0),0,1)*255),
+      Math.round(clamp(f(8),0,1)*255),
+      Math.round(clamp(f(4),0,1)*255)
+    ];
+  }
+  function rgbToHex(r,g,b){
+    return "#"+[r,g,b].map(v=>clamp(Math.round(v),0,255).toString(16).padStart(2,"0")).join("");
+  }
+  function hexToRgb(hex){
+    let h = hex.replace("#","").trim();
+    if(h.length===3) h = h.split("").map(c=>c+c).join("");
+    if(!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+  }
+  function normalizeHex(v){
+    if(!v) return null;
+    v = v.trim();
+    if(v[0] !== "#") v = "#"+v;
+    const rgb = hexToRgb(v);
+    if(!rgb) return null;
+    return rgbToHex(rgb[0],rgb[1],rgb[2]);
+  }
+
+  // find the lightness (0..100, whole steps) that gets an h/s pair closest to
+  // targetLum while still meeting-or-exceeding it, walking away from the base.
+  function solveSwatch(h,s,targetLum,direction){
+    let best=null;
+    if(direction==="lighter"){
+      for(let l=0;l<=100;l++){
+        const [r,g,b]=hslToRgb(h,s,l);
+        const lum=relLum(r,g,b);
+        if(lum>=targetLum-1e-6){ best={r,g,b,lum}; break; }
+      }
+      if(!best){ const [r,g,b]=hslToRgb(h,s,100); best={r,g,b,lum:relLum(r,g,b)}; }
+    } else {
+      for(let l=100;l>=0;l--){
+        const [r,g,b]=hslToRgb(h,s,l);
+        const lum=relLum(r,g,b);
+        if(lum<=targetLum+1e-6){ best={r,g,b,lum}; break; }
+      }
+      if(!best){ const [r,g,b]=hslToRgb(h,s,0); best={r,g,b,lum:relLum(r,g,b)}; }
+    }
+    return best;
+  }
+
+  // ---------- state ----------
+  const state = { baseHex:"#000000", baseRgb:[0,0,0], baseLum:0, ratio:7, activeDir:"lighter" };
+
+  const CURATED = [
+    {name:"Neutral Gray", h:0,   s:0},
+    {name:"Slate",        h:208, s:16},
+    {name:"Crimson",      h:350, s:68},
+    {name:"Terracotta",   h:18,  s:60},
+    {name:"Amber",        h:40,  s:82},
+    {name:"Olive",        h:78,  s:38},
+    {name:"Moss",         h:140, s:38},
+    {name:"Teal",         h:186, s:52},
+    {name:"Azure",        h:214, s:62},
+    {name:"Indigo",       h:248, s:48},
+    {name:"Plum",         h:318, s:40}
+  ];
+
+  // ---------- elements ----------
+  const el = id => document.getElementById(id);
+  const colorInput=el("colorInput"), hexInput=el("hexInput"), eyedropBtn=el("eyedropBtn");
+  const ratioRange=el("ratioRange"), ratioNumber=el("ratioNumber"), clampNote=el("clampNote");
+  const readoutRatio=el("readoutRatio"), readoutBase=el("readoutBase");
+  const gaugeCaption=el("gaugeCaption"), baseMarker=el("baseMarker"), zoneLighter=el("zoneLighter"), zoneDarker=el("zoneDarker");
+  const tabLighter=el("tabLighter"), tabDarker=el("tabDarker"), impossibleNote=el("impossibleNote");
+  const curatedGrid=el("curatedGrid");
+  const sweepVivid=el("sweepVivid"), sweepMuted=el("sweepMuted");
+  const tooltip=el("sweepTooltip"), toastEl=el("toast");
+
+  // ---------- static gauge gradient (luminance-linear black -> white) ----------
+  (function drawGauge(){
+    const c = el("gaugeCanvas"), ctx = c.getContext("2d");
+    const w = c.width, h = c.height;
+    for(let x=0;x<w;x++){
+      const targetLum = x/(w-1);
+      const v = Math.round(linearToSrgb(targetLum)*255);
+      ctx.fillStyle = `rgb(${v},${v},${v})`;
+      ctx.fillRect(x,0,1,h);
+    }
+  })();
+
+  // ---------- toast ----------
+  let toastTimer=null;
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>toastEl.classList.remove("show"), 1400);
+  }
+  function copyText(text){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(()=>showToast("Copied "+text)).catch(()=>fallbackCopy(text));
+    } else {
+      fallbackCopy(text);
+    }
+  }
+  function fallbackCopy(text){
+    try{
+      const ta=document.createElement("textarea");
+      ta.value=text; ta.style.position="fixed"; ta.style.opacity="0";
+      document.body.appendChild(ta); ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      showToast("Copied "+text);
+    }catch(e){ showToast(text); }
+  }
+
+  // ---------- base / ratio setters ----------
+  function setBase(hex){
+    const norm = normalizeHex(hex);
+    if(!norm) return;
+    state.baseHex = norm;
+    state.baseRgb = hexToRgb(norm);
+    state.baseLum = relLum(state.baseRgb[0], state.baseRgb[1], state.baseRgb[2]);
+    colorInput.value = norm;
+    hexInput.value = norm;
+    recomputeAll();
+  }
+
+  function maxAchievableRatio(baseLum){
+    return Math.max( (baseLum+0.05)/0.05, 1.05/(baseLum+0.05) );
+  }
+
+  function setRatio(v){
+    let r = parseFloat(v);
+    if(isNaN(r)) r = state.ratio;
+    r = clamp(r, 1.1, 21);
+    const cap = Math.min(21, maxAchievableRatio(state.baseLum));
+    let clamped = false;
+    if(r > cap + 1e-9){ r = cap; clamped = true; }
+    state.ratio = r;
+    ratioRange.value = r;
+    ratioNumber.value = r.toFixed(2).replace(/\.00$/,"").replace(/(\.\d)0$/,"$1");
+    clampNote.textContent = clamped
+      ? `Clamped to ${cap.toFixed(2)} : 1 — the highest ratio this base can reach.`
+      : "";
+    document.querySelectorAll(".preset-btn").forEach(b=>{
+      b.classList.toggle("active", Math.abs(parseFloat(b.dataset.ratio)-r) < 0.05);
+    });
+    recomputeAll();
+  }
+
+  // ---------- main recompute ----------
+  function recomputeAll(){
+    const baseLum = state.baseLum, ratio = state.ratio;
+    const lighterLum = ratio*(baseLum+0.05)-0.05;
+    const darkerLum   = (baseLum+0.05)/ratio-0.05;
+    const lighterValid = lighterLum <= 1+1e-6 && lighterLum >= baseLum-1e-6;
+    const darkerValid  = darkerLum  >= -1e-6 && darkerLum  <= baseLum+1e-6;
+    const lighterTarget = clamp(lighterLum,0,1);
+    const darkerTarget  = clamp(darkerLum,0,1);
+
+    readoutRatio.textContent = ratio.toFixed(2)+" : 1";
+    readoutBase.textContent = "against "+state.baseHex;
+    gaugeCaption.textContent = "L(base) = "+baseLum.toFixed(4);
+
+    // marker + zones (percent positions along the luminance-linear gauge)
+    baseMarker.style.left = (baseLum*100)+"%";
+    if(lighterValid){
+      zoneLighter.hidden=false;
+      zoneLighter.style.left=(lighterTarget*100)+"%";
+      zoneLighter.style.width=((1-lighterTarget)*100)+"%";
+    } else { zoneLighter.hidden=true; }
+    if(darkerValid){
+      zoneDarker.hidden=false;
+      zoneDarker.style.left="0%";
+      zoneDarker.style.width=(darkerTarget*100)+"%";
+    } else { zoneDarker.hidden=true; }
+
+    // tabs
+    tabLighter.disabled = !lighterValid;
+    tabDarker.disabled = !darkerValid;
+    tabLighter.setAttribute("aria-selected", String(state.activeDir==="lighter"));
+    tabDarker.setAttribute("aria-selected", String(state.activeDir==="darker"));
+    if(state.activeDir==="lighter" && !lighterValid) state.activeDir = darkerValid ? "darker" : "lighter";
+    if(state.activeDir==="darker" && !darkerValid) state.activeDir = lighterValid ? "lighter" : "darker";
+    tabLighter.setAttribute("aria-selected", String(state.activeDir==="lighter"));
+    tabDarker.setAttribute("aria-selected", String(state.activeDir==="darker"));
+
+    const bothValid = lighterValid && darkerValid;
+    document.getElementById("tabBar").hidden = !bothValid;
+    if(!lighterValid && !darkerValid){
+      impossibleNote.hidden=false;
+      impossibleNote.textContent = "No color reaches this ratio against "+state.baseHex+".";
+    } else if(!bothValid){
+      impossibleNote.hidden=false;
+      impossibleNote.textContent = state.baseLum<0.02
+        ? "Only lighter matches are possible — black already sits at the bottom of the scale."
+        : (state.baseLum>0.98
+          ? "Only darker matches are possible — white already sits at the top of the scale."
+          : (lighterValid ? "Only lighter matches reach this ratio against this base." : "Only darker matches reach this ratio against this base."));
+    } else {
+      impossibleNote.hidden=true;
+    }
+
+    const activeTarget = state.activeDir==="lighter" ? lighterTarget : darkerTarget;
+    renderCurated(activeTarget, state.activeDir);
+    renderSweep(sweepVivid, 70, activeTarget, state.activeDir);
+    renderSweep(sweepMuted, 22, activeTarget, state.activeDir);
+  }
+
+  function readableTextColor(bgLum){
+    // pick base or near-opposite for the "Aa" glyph fill on curated cards: always the base color
+    return state.baseHex;
+  }
+
+  function renderCurated(targetLum, direction){
+    curatedGrid.innerHTML = "";
+    CURATED.forEach(def=>{
+      const sw = solveSwatch(def.h, def.s, targetLum, direction);
+      const hex = rgbToHex(sw.r, sw.g, sw.b);
+      const ratio = contrastOf(state.baseLum, sw.lum);
+
+      const card = document.createElement("div");
+      card.className = "swatch-card";
+
+      const preview = document.createElement("div");
+      preview.className = "swatch-preview";
+      preview.style.background = state.baseHex;
+      preview.style.color = hex;
+      preview.textContent = "Aa";
+
+      const meta = document.createElement("div");
+      meta.className = "swatch-meta";
+      const name = document.createElement("div");
+      name.className = "swatch-name"; name.textContent = def.name;
+      const row1 = document.createElement("div");
+      row1.className = "swatch-row";
+      const hexSpan = document.createElement("span");
+      hexSpan.className="swatch-hex"; hexSpan.textContent = hex;
+      const copyBtn = document.createElement("button");
+      copyBtn.className="copy-btn"; copyBtn.type="button"; copyBtn.textContent="Copy";
+      copyBtn.addEventListener("click", ()=>copyText(hex));
+      row1.appendChild(hexSpan); row1.appendChild(copyBtn);
+
+      const row2 = document.createElement("div");
+      row2.className = "swatch-row";
+      const ratioSpan = document.createElement("span");
+      ratioSpan.className="swatch-ratio"; ratioSpan.textContent = ratio.toFixed(2)+" : 1";
+      row2.appendChild(ratioSpan);
+
+      meta.appendChild(name); meta.appendChild(row1); meta.appendChild(row2);
+      card.appendChild(preview); card.appendChild(meta);
+      curatedGrid.appendChild(card);
+    });
+  }
+
+  function renderSweep(canvas, sat, targetLum, direction){
+    const ctx = canvas.getContext("2d");
+    const w = canvas.width, h = canvas.height;
+    const data = new Array(w);
+    for(let x=0;x<w;x++){
+      const hue = x/w*360;
+      const sw = solveSwatch(hue, sat, targetLum, direction);
+      const hex = rgbToHex(sw.r,sw.g,sw.b);
+      const ratio = contrastOf(state.baseLum, sw.lum);
+      data[x] = {hex, ratio};
+      ctx.fillStyle = `rgb(${sw.r},${sw.g},${sw.b})`;
+      ctx.fillRect(x,0,1,h);
+    }
+    canvas._data = data;
+  }
+
+  function wireSweepInteraction(canvas){
+    function pick(clientX){
+      const rect = canvas.getBoundingClientRect();
+      const frac = clamp((clientX-rect.left)/rect.width, 0, 0.999999);
+      const idx = Math.floor(frac*canvas.width);
+      return canvas._data ? canvas._data[idx] : null;
+    }
+    canvas.addEventListener("mousemove", e=>{
+      const d = pick(e.clientX);
+      if(!d) return;
+      tooltip.textContent = d.hex+"  ·  "+d.ratio.toFixed(2)+" : 1";
+      tooltip.style.left = e.clientX+"px";
+      tooltip.style.top = e.clientY+"px";
+      tooltip.classList.add("show");
+    });
+    canvas.addEventListener("mouseleave", ()=>tooltip.classList.remove("show"));
+    canvas.addEventListener("click", e=>{
+      const d = pick(e.clientX);
+      if(d) copyText(d.hex);
+    });
+  }
+  wireSweepInteraction(sweepVivid);
+  wireSweepInteraction(sweepMuted);
+
+  // ---------- wiring ----------
+  colorInput.addEventListener("input", e=>setBase(e.target.value));
+  hexInput.addEventListener("change", e=>{
+    const norm = normalizeHex(e.target.value);
+    if(norm) setBase(norm); else hexInput.value = state.baseHex;
+  });
+  document.querySelectorAll(".quick-btn").forEach(b=>{
+    b.addEventListener("click", ()=>setBase(b.dataset.hex));
+  });
+  if(window.EyeDropper){
+    eyedropBtn.addEventListener("click", ()=>{
+      new EyeDropper().open().then(r=>setBase(r.sRGBHex)).catch(()=>{});
+    });
+  } else {
+    eyedropBtn.style.display = "none";
+  }
+
+  ratioRange.addEventListener("input", e=>setRatio(e.target.value));
+  ratioNumber.addEventListener("change", e=>setRatio(e.target.value));
+  document.querySelectorAll(".preset-btn").forEach(b=>{
+    b.addEventListener("click", ()=>setRatio(b.dataset.ratio));
+  });
+
+  tabLighter.addEventListener("click", ()=>{ if(!tabLighter.disabled){ state.activeDir="lighter"; recomputeAll(); } });
+  tabDarker.addEventListener("click", ()=>{ if(!tabDarker.disabled){ state.activeDir="darker"; recomputeAll(); } });
+
+  // ---------- init ----------
+  setBase("#000000");
+  setRatio(7);
+})();
+</script>
